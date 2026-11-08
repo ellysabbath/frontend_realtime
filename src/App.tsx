@@ -1,130 +1,165 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { ref, onValue } from "firebase/database";
-import { database } from "./firebase";
-import { API_BASE } from "./config";
+import { Routes, Route, Navigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import LandingPage from './pages/LandingPage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import DashboardLayout from './components/layout/DashboardLayout'
+import CustomerDashboard from './pages/customer/CustomerDashboard'
+import MyRequests from './pages/customer/MyRequests'
+import RequestForm from './pages/customer/RequestForm'
+import PaymentPage from './pages/customer/PaymentPage'
+import TechnicianDashboard from './pages/technician/TechnicianDashboard'
+import TechnicianRequests from './pages/technician/TechnicianRequests'
+import Revenue from './pages/technician/Revenue'
+import TechnicianRegister from './pages/technician/TechnicianRegister'
+import OwnerDashboard from './pages/owner/OwnerDashboard'
+import OwnerRegister from './pages/owner/OwnerRegister'
+import TreatyPage from './pages/owner/TreatyPage'
+import AdminDashboard from './pages/admin/AdminDashboard'
 
-interface Message {
-  id: string;
-  text: string;
-  user: string;
-  timestamp: number;
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminGarages from './pages/admin/AdminGarages'
+import AdminOperations from './pages/admin/AdminOperations'
+import { useAuth } from './context/AuthContext'
+import type { UserRole } from './context/AuthContext'
+import AdminTechnicians from './pages/admin/AdminTechnicians'
+import AdminRequests from './pages/admin/AdminRequests'
+import MyJobs from './pages/technician/MyJobs'
+import ChatPage from './pages/ChatPage'
+import GarageDocuments from './pages/owner/GarageDocuments'
+import OwnerTech from './pages/owner/OwnerTech'
+
+const HOME: Record<UserRole, string> = {
+  customer: '/customer/dashboard',
+  technician: '/technician/dashboard',
+  owner: '/owner/dashboard',
+  admin: '/admin/dashboard',
+}
+
+function RequireRole({
+  allow,
+  children,
+}: {
+  allow: UserRole[]
+  children: ReactNode
+}) {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  if (!allow.includes(user.role)) return <Navigate to={HOME[user.role]} replace />
+  return <>{children}</>
 }
 
 export default function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [user, setUser] = useState(
-    "user-" + Math.floor(Math.random() * 1000)
-  );
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading } = useAuth()
 
-  // ── Real-time listener: Firebase → React ──
-  useEffect(() => {
-    const messagesRef = ref(database, "messages");
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (!data) {
-        setMessages([]);
-        return;
-      }
-      const list: Message[] = Object.entries(data).map(
-        ([id, val]) => ({ id, ...(val as Omit<Message, "id">) })
-      );
-      list.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      setMessages(list);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // ── Send: React → Django → Firebase ──
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || sending) return;
-    setSending(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE}/messages/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: input.trim(), user }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
-      }
-      setInput("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "unknown error");
-    } finally {
-      setSending(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-500 text-sm">Loading</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4">
-      <div className="mx-auto max-w-2xl">
-        <h1 className="mb-1 text-3xl font-bold text-slate-800">
-          Real-Time Message Board
-        </h1>
-        <p className="mb-4 text-sm text-slate-500">
-          Django: <code>127.0.0.1:8000</code> · React:{" "}
-          <code>localhost:5173</code> · Firebase: Realtime DB
-        </p>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/chat/:requestId" element={<ChatPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
-        <div className="mb-4 flex items-center gap-2">
-          <label className="text-sm text-slate-600">You are:</label>
-          <input
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
-          />
-        </div>
+      {/* CUSTOMER AREA — customer, technician, admin */}
+      <Route
+        path="/customer"
+        element={
+          <RequireRole allow={['customer', 'technician', 'admin']}>
+            <DashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<Navigate to="/customer/dashboard" replace />} />
+        <Route path="dashboard" element={<CustomerDashboard />} />
+        <Route path="requests" element={<MyRequests />} />
+        <Route path="request/new" element={<RequestForm />} />
+        <Route path="payment/:id" element={<PaymentPage />} />
+      </Route>
 
-        <div className="mb-4 h-96 overflow-y-auto rounded-lg bg-white p-4 shadow">
-          {messages.length === 0 ? (
-            <p className="mt-8 text-center text-slate-400">No messages yet</p>
-          ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className="mb-2 border-b border-slate-100 pb-2 last:border-none"
-              >
-                <span className="font-semibold text-blue-600">{m.user}</span>
-                <span className="mx-1 text-slate-400">·</span>
-                <span className="text-xs text-slate-400">
-                  {m.timestamp
-                    ? new Date(m.timestamp).toLocaleTimeString()
-                    : ""}
-                </span>
-                <p className="text-slate-700">{m.text}</p>
-              </div>
-            ))
-          )}
-        </div>
+      {/* TECHNICIAN AREA — technician, admin */}
+      <Route
+        path="/technician"
+        element={
+          <RequireRole allow={['technician', 'admin']}>
+            <DashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<Navigate to="/technician/dashboard" replace />} />
+        <Route path="dashboard" element={<TechnicianDashboard />} />
+        <Route path="requests" element={<TechnicianRequests />} />
+        <Route path="revenue" element={<Revenue />} />
+        <Route path="jobs" element={<MyJobs />} />
+      </Route>
 
-        {error && (
-          <p className="mb-2 rounded bg-red-50 p-2 text-sm text-red-600">
-            {error}
-          </p>
-        )}
+      {/* TECHNICIAN ONBOARDING — customer, technician, admin */}
+      <Route
+        path="/technician/register"
+        element={
+          <RequireRole allow={['customer', 'technician', 'admin']}>
+            <DashboardLayout />
+          </RequireRole>
+        }
+      >
+        
+        <Route index element={<TechnicianRegister />} />
+      </Route>
 
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-          <button
-            type="submit"
-            disabled={sending}
-            className="rounded bg-blue-500 px-4 py-2 text-white transition hover:bg-blue-600 disabled:opacity-50"
-          >
-            {sending ? "Sending..." : "Send"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
+      {/* OWNER AREA — owner, technician, admin */}
+      <Route
+        path="/owner"
+        element={
+          <RequireRole allow={['owner', 'technician', 'admin']}>
+            <DashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<Navigate to="/owner/dashboard" replace />} />
+        <Route path="dashboard" element={<OwnerDashboard />} />
+        <Route path="treaty" element={<TreatyPage />} />
+        <Route path="documents/:id" element={<GarageDocuments />} />
+        <Route path="technicians" element={<OwnerTech />} />
+      </Route>
+
+      {/* OWNER ONBOARDING — customer, technician, owner, admin */}
+      <Route
+        path="/owner/register"
+        element={
+          <RequireRole allow={['customer', 'technician', 'owner', 'admin']}>
+            <DashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<OwnerRegister />} />
+      </Route>
+
+      {/* ADMIN AREA — admin, technician */}
+      <Route
+        path="/admin"
+        element={
+          <RequireRole allow={['admin', 'technician']}>
+            <DashboardLayout />
+          </RequireRole>
+        }
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="garages" element={<AdminGarages />} />
+        <Route path="operations" element={<AdminOperations />} />
+        <Route path="operations" element={<AdminOperations />} />
+        <Route path="technicians" element={<AdminTechnicians />} />
+        <Route path="reqs" element={<AdminRequests />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
 }
