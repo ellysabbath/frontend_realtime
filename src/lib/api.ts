@@ -76,6 +76,7 @@ export interface ApiRequest {
   vehicleModel: string
   plateNumber: string
   problemType: string
+  vehiclePhoto?: string
   problemDescription: string
   status: string
   estimatedCost: number

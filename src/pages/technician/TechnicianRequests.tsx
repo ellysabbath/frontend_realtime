@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   UserPlus,
-  RefreshCw,
+  Car,
 } from 'lucide-react'
 import { technicianApi, type ApiRequest } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
@@ -298,8 +298,25 @@ export default function TechnicianRequests() {
             const isBusy = accepting === r.id
             return (
               <Card key={r.id} className="p-5" hover>
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  <div className="flex-1">
+                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                  
+                  {/* VEHICLE IMAGE THUMBNAIL */}
+                  {r.vehiclePhoto ? (
+                    <div className="w-full lg:w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                      <img 
+                        src={r.vehiclePhoto} 
+                        alt="Vehicle" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full lg:w-32 h-32 shrink-0 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400">
+                      <Car size={24} className="mb-1" />
+                      <span className="text-[10px] uppercase font-semibold">No Photo</span>
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <Badge color="yellow">New</Badge>
                       <span className="text-xs text-slate-400">#{r.id}</span>
@@ -323,7 +340,8 @@ export default function TechnicianRequests() {
                       )}
                     </div>
                   </div>
-                  <div className="flex lg:flex-col gap-2 lg:items-end">
+
+                  <div className="flex lg:flex-col gap-2 lg:items-end shrink-0 lg:ml-4">
                     <div className="text-right mb-2">
                       <p className="text-xs text-slate-500">Estimated</p>
                       <p className="text-xl font-bold text-brand-600">

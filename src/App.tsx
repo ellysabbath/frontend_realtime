@@ -156,7 +156,7 @@ export default function App() {
         <Route path="operations" element={<AdminOperations />} />
         <Route path="operations" element={<AdminOperations />} />
         <Route path="technicians" element={<AdminTechnicians />} />
-        <Route path="reqs" element={<AdminRequests />} />
+        <Route path="requests" element={<AdminRequests />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

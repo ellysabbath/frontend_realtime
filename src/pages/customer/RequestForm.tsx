@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { customerApi } from '../../lib/api'
@@ -14,6 +14,9 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
+  Upload,
+  X,
+  Car,
 } from 'lucide-react'
 
 const problemTypes = [
@@ -41,6 +44,11 @@ export default function RequestForm() {
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [locating, setLocating] = useState(true)
+  
+  // Image state
+  const [vehicleImage, setVehicleImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [modal, setModal] = useState<ModalState>({
     open: false,
     type: 'success',
@@ -138,6 +146,44 @@ export default function RequestForm() {
     )
   }
 
+  // Handle Image Upload (Convert to Base64)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setModal({
+        open: true,
+        type: 'error',
+        title: 'Invalid file',
+        message: 'Please select an image file (JPG, PNG).',
+      })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      // Compress the image slightly using canvas (optional, but helps prevent quota limits)
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 800
+        const scaleSize = MAX_WIDTH / img.width
+        canvas.width = MAX_WIDTH
+        canvas.height = img.height * scaleSize
+        
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
+        
+        // Get compressed base64 string
+        const base64Str = canvas.toDataURL('image/jpeg', 0.7)
+        setVehicleImage(base64Str)
+      }
+      img.src = event.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleSubmit = async () => {
     if (!user) {
       setModal({
@@ -172,6 +218,7 @@ export default function RequestForm() {
       await customerApi.createRequest({
         ...form,
         customerId: user.userId,
+        vehiclePhoto: vehicleImage, // Send the base64 string
       })
       setModal({
         open: true,
@@ -317,6 +364,49 @@ export default function RequestForm() {
               value={form.plateNumber}
               onChange={(e) => update('plateNumber', e.target.value)}
             />
+
+            {/* VEHICLE PHOTO UPLOAD */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Vehicle Photo
+              </label>
+              
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+              />
+
+              {vehicleImage ? (
+                <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                  <img
+                    src={vehicleImage}
+                    alt="Vehicle preview"
+                    className="w-full h-48 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setVehicleImage(null)}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-brand-400 hover:bg-brand-50/50 cursor-pointer transition-all"
+                >
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                    <Car size={24} />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">Click to upload a photo</p>
+                  <p className="text-xs text-slate-500 mt-1">JPG, PNG up to 10MB</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

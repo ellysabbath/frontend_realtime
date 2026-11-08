@@ -17,6 +17,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import LiveLocationModal from '../../components/LiveLocationModal'
+import CallModal from '../../components/CallModal' // <-- ADDED IMPORT
 
 interface ModalState {
   open: boolean
@@ -41,6 +42,8 @@ export default function MyJobs() {
   const [jobs, setJobs] = useState<ApiRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [mapTarget, setMapTarget] = useState<ApiRequest | null>(null)
+  const [callTarget, setCallTarget] = useState<ApiRequest | null>(null) // <-- ADDED STATE FOR CALLS
+  
   const [modal, setModal] = useState<ModalState>({
     open: false, type: 'success', title: '', message: '',
   })
@@ -156,8 +159,20 @@ export default function MyJobs() {
         <div className="space-y-4">
           {jobs.map((j) => (
             <Card key={j.id} className="p-5" hover>
-              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                <div className="flex-1">
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                
+                {j.vehiclePhoto ? (
+                  <div className="w-full lg:w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                    <img src={j.vehiclePhoto} alt="Vehicle" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-full lg:w-32 h-32 shrink-0 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400">
+                    <Car size={24} className="mb-1" />
+                    <span className="text-[10px] uppercase font-semibold">No Photo</span>
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
                     <Badge color={statusColor(j.status)}>{j.status}</Badge>
                     <span className="text-xs text-slate-400">#{j.id}</span>
@@ -178,7 +193,7 @@ export default function MyJobs() {
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2 min-w-[180px]">
+                <div className="flex flex-col items-end gap-2 shrink-0 lg:ml-4">
                   <p className="text-lg font-bold text-slate-900">
                     {(j.estimatedCost || 0).toLocaleString()} TZS
                   </p>
@@ -186,10 +201,13 @@ export default function MyJobs() {
                     <Button size="sm" variant="outline" onClick={() => setMapTarget(j)}>
                       <MapPin size={14} /> Track Customer
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => nav(`/chat/${j.id}`)}
-                    >
+                    
+                    {/* CALL BUTTON */}
+                    <Button size="sm" variant="outline" onClick={() => setCallTarget(j)}>
+                      <Phone size={14} /> Call
+                    </Button>
+
+                    <Button size="sm" onClick={() => nav(`/chat/${j.id}`)}>
                       <MessageCircle size={14} /> Chat
                     </Button>
                     {j.status === 'taken' && (
@@ -215,6 +233,16 @@ export default function MyJobs() {
         customerName={mapTarget?.customerName || ''}
         onClose={() => setMapTarget(null)}
       />
+
+      {/* CALL MODAL (Technician calling Customer) */}
+      {callTarget && (
+        <CallModal
+          roomId={callTarget.id}
+          role="caller"
+          currentUserId={user?.userId || ''}
+          onClose={() => setCallTarget(null)}
+        />
+      )}
 
       <Modal
         open={modal.open}

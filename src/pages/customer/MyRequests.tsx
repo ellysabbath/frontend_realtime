@@ -14,6 +14,7 @@ import {
   WifiOff,
   MessageCircle,
   Navigation,
+  Car,
 } from 'lucide-react'
 import { customerApi, type ApiRequest } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
@@ -23,6 +24,7 @@ import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import CustomerLocationTracker from '../../components/CustomerLocationTracker'
 import LiveLocationModal from '../../components/LiveLocationModal'
+import CallModal from '../../components/CallModal' // <-- ADDED IMPORT
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000/api'
 
@@ -53,11 +55,9 @@ export default function MyRequests() {
   const [loading, setLoading] = useState(true)
   const [liveState, setLiveState] = useState<LiveState>('connecting')
   
-  // Modal state for viewing technician details
   const [selected, setSelected] = useState<ApiRequest | null>(null)
-  
-  // State for tracking the technician's live location
   const [trackingRequest, setTrackingRequest] = useState<ApiRequest | null>(null)
+  const [callTarget, setCallTarget] = useState<ApiRequest | null>(null) // <-- ADDED STATE FOR CALLS
   
   const [cancelling, setCancelling] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>({
@@ -218,7 +218,6 @@ export default function MyRequests() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">My Requests</h1>
@@ -232,7 +231,6 @@ export default function MyRequests() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="p-4">
           <p className="text-xs text-slate-500">Active</p>
@@ -248,7 +246,6 @@ export default function MyRequests() {
         </Card>
       </div>
 
-      {/* Request List */}
       {loading ? (
         <Card className="p-8 flex items-center justify-center gap-2 text-slate-500">
           <Loader2 size={18} className="animate-spin" /> Loading requests
@@ -264,12 +261,23 @@ export default function MyRequests() {
         <div className="grid gap-4">
           {requests.map((r) => (
             <div key={r.id}>
-              {/* Invisible component that silently tracks the customer's GPS */}
               <CustomerLocationTracker requestId={r.id} status={r.status} />
 
               <Card className="p-5" hover>
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  <div className="flex-1">
+                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                  
+                  {r.vehiclePhoto ? (
+                    <div className="w-full lg:w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                      <img src={r.vehiclePhoto} alt="Vehicle" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-full lg:w-32 h-32 shrink-0 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400">
+                      <Car size={24} className="mb-1" />
+                      <span className="text-[10px] uppercase font-semibold">No Photo</span>
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <Badge color={statusColor(r.status)}>{r.status}</Badge>
                       <span className="text-xs text-slate-400">#{r.id}</span>
@@ -291,7 +299,7 @@ export default function MyRequests() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 lg:flex-col lg:items-end">
+                  <div className="flex items-center gap-3 lg:flex-col lg:items-end shrink-0 lg:ml-4">
                     <div className="text-right">
                       <p className="text-xs text-slate-500">Estimated</p>
                       <p className="text-lg font-bold text-slate-900">
@@ -301,65 +309,40 @@ export default function MyRequests() {
                     <div className="flex gap-2 flex-wrap justify-end">
                       {r.technicianName && (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelected(r)}
-                          >
+                          <Button size="sm" variant="outline" onClick={() => setSelected(r)}>
                             <Eye size={14} /> View Tech
                           </Button>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-brand-600 border-brand-200 bg-brand-50 hover:bg-brand-100"
-                            onClick={() => setTrackingRequest(r)}
-                          >
+                          <Button size="sm" variant="outline" className="text-brand-600 border-brand-200 bg-brand-50 hover:bg-brand-100" onClick={() => setTrackingRequest(r)}>
                             <Navigation size={14} /> Track Live
                           </Button>
+                          
+                          {/* CALL BUTTON */}
+                          <Button size="sm" variant="outline" onClick={() => setCallTarget(r)}>
+                            <Phone size={14} /> Call
+                          </Button>
 
-                          <Button
-                            size="sm"
-                            className="bg-brand-600 hover:bg-brand-700 text-white inline-flex items-center gap-1.5"
-                            onClick={() => nav(`/chat/${r.id}`)}
-                          >
+                          <Button size="sm" className="bg-brand-600 hover:bg-brand-700 text-white inline-flex items-center gap-1.5" onClick={() => nav(`/chat/${r.id}`)}>
                             <MessageCircle size={14} /> Chat
                           </Button>
                         </>
                       )}
 
                       {r.status === 'taken' && (
-                        <Button
-                          size="sm"
-                          onClick={() => nav(`/customer/payment/${r.id}`)}
-                        >
+                        <Button size="sm" onClick={() => nav(`/customer/payment/${r.id}`)}>
                           <CreditCard size={14} /> Pay Now
                         </Button>
                       )}
 
                       {r.status === 'cancelled' ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => nav('/customer/request/new')}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => nav('/customer/request/new')}>
                           <RotateCcw size={14} /> Re-order
                         </Button>
                       ) : r.status !== 'paid' ? (
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => cancel(r.id)}
-                          disabled={cancelling === r.id}
-                        >
+                        <Button size="sm" variant="danger" onClick={() => cancel(r.id)} disabled={cancelling === r.id}>
                           {cancelling === r.id ? (
-                            <>
-                              <Loader2 size={14} className="animate-spin" /> Cancelling
-                            </>
+                            <><Loader2 size={14} className="animate-spin" /> Cancelling</>
                           ) : (
-                            <>
-                              <XCircle size={14} /> Cancel
-                            </>
+                            <><XCircle size={14} /> Cancel</>
                           )}
                         </Button>
                       ) : null}
@@ -372,12 +355,8 @@ export default function MyRequests() {
         </div>
       )}
 
-      {/* View Technician Details Modal */}
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title="Technician Details"
-      >
+      {/* Technician Details Modal */}
+      <Modal open={!!selected} onClose={() => setSelected(null)} title="Technician Details">
         {selected && (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -385,77 +364,51 @@ export default function MyRequests() {
                 {selected.technicianName?.charAt(0) || '?'}
               </div>
               <div>
-                <p className="font-bold text-slate-900">
-                  {selected.technicianName || '—'}
-                </p>
+                <p className="font-bold text-slate-900">{selected.technicianName || '—'}</p>
                 <p className="text-sm text-slate-500">Verified Technician</p>
               </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
                 <Phone size={16} className="text-slate-400" />
-                <span className="text-sm text-slate-700">
-                  {selected.technicianPhone || '—'}
-                </span>
+                <span className="text-sm text-slate-700">{selected.technicianPhone || '—'}</span>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
                 <MapPin size={16} className="text-slate-400" />
-                <span className="text-sm text-slate-700">
-                  {selected.technicianLocation || '—'}
-                </span>
+                <span className="text-sm text-slate-700">{selected.technicianLocation || '—'}</span>
               </div>
             </div>
-            <Button
-              className="w-full bg-brand-600 hover:bg-brand-700 text-white inline-flex items-center justify-center gap-2"
-              onClick={() => {
-                const rid = selected.id
-                setSelected(null)
-                nav(`/chat/${rid}`)
-              }}
-            >
+            <Button className="w-full bg-brand-600 hover:bg-brand-700 text-white inline-flex items-center justify-center gap-2" onClick={() => { const rid = selected.id; setSelected(null); nav(`/chat/${rid}`) }}>
               <MessageCircle size={16} /> Chat with technician
             </Button>
           </div>
         )}
       </Modal>
 
-      {/* Live Tracking Modal (Customer viewing Technician) */}
-      <LiveLocationModal
-        requestId={trackingRequest?.id || null}
-        customerName={trackingRequest?.technicianName || 'Technician'}
-        onClose={() => setTrackingRequest(null)}
-      />
+      {/* Live Tracking Modal */}
+      <LiveLocationModal requestId={trackingRequest?.id || null} customerName={trackingRequest?.technicianName || 'Technician'} onClose={() => setTrackingRequest(null)} />
+
+      {/* CALL MODAL (Customer calling Technician) */}
+      {callTarget && (
+        <CallModal
+          roomId={callTarget.id}
+          role="caller"
+          currentUserId={user?.userId || ''}
+          onClose={() => setCallTarget(null)}
+        />
+      )}
 
       {/* Feedback Modal */}
-      <Modal
-        open={modal.open}
-        onClose={() => setModal({ ...modal, open: false })}
-        title={modal.title}
-      >
+      <Modal open={modal.open} onClose={() => setModal({ ...modal, open: false })} title={modal.title}>
         <div className="space-y-5">
           <div className="flex items-start gap-3">
-            <div
-              className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
-                modal.type === 'success'
-                  ? 'bg-green-50 text-green-600'
-                  : 'bg-red-50 text-red-600'
-              }`}
-            >
-              {modal.type === 'success' ? (
-                <CheckCircle2 size={22} />
-              ) : (
-                <AlertTriangle size={22} />
-              )}
+            <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${modal.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+              {modal.type === 'success' ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
             </div>
-            <p className="text-sm text-slate-700 leading-relaxed pt-1">
-              {modal.message}
-            </p>
+            <p className="text-sm text-slate-700 leading-relaxed pt-1">{modal.message}</p>
           </div>
           <div className="flex justify-end">
-            <Button
-              variant={modal.type === 'success' ? 'primary' : 'outline'}
-              onClick={() => setModal({ ...modal, open: false })}
-            >
+            <Button variant={modal.type === 'success' ? 'primary' : 'outline'} onClick={() => setModal({ ...modal, open: false })}>
               Got it
             </Button>
           </div>
